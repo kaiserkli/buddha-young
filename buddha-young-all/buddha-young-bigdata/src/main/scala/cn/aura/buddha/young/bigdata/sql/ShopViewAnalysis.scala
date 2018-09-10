@@ -27,7 +27,7 @@ object ShopViewAnalysis {
     * @return List[ShopView]
     */
   def viewByTimeAnalysis(shopId: Int, dateType: Int): util.List[ShopView] = {
-    val spark = SparkSession.builder().master("local[*]").appName("ViewByTimeAnalysis").getOrCreate()
+    val spark = SparkSession.builder().appName("ViewByTimeAnalysis").getOrCreate()
 
     val input = spark.sparkContext.textFile(ConfigUtil.HADOOP_HDFS_URL + "/warehouse/buddha_young.db/user_view").map(_.split(",", -1)).map(line => transformUserView(line));
 
@@ -67,7 +67,7 @@ object ShopViewAnalysis {
     * @return List[ShopView]
     */
   def viewByTop50Analysis(): util.List[ShopView] = {
-    val spark = SparkSession.builder().master("local[*]").appName("ViewByTimeAnalysis").getOrCreate()
+    val spark = SparkSession.builder().appName("ViewByTop50Analysis").getOrCreate()
 
     val inputShopInfo = spark.sparkContext.textFile("./buddha-young-bigdata/data/shop_info.txt").map(_.split(",", -1)).map(line => transformShopInfo(line));
     val inputUserView = spark.sparkContext.textFile("./buddha-young-bigdata/data/user_view.txt").map(_.split(",", -1)).map(line => transformUserView(line));
