@@ -11,17 +11,22 @@ import org.apache.spark.sql.functions._
 object ShopInfoAnalysis {
 
   def main(args: Array[String]): Unit = {
-    val spark = SparkSession.builder().master("local[2]").appName("SparkTask04Scala").getOrCreate();
 
-    //val inputShopInfo = spark.sparkContext.textFile("hdfs://192.168.21.74:9000/warehouse/buddhalike.db/shop_info").map(_.split(",", -1)).map(line => exchangeShopInfo(line));
+    var host = "172.16.186.128";
+    var shopInfoPath = "./buddha-young-bigdata/data/shop_info.txt";
+    var userPayPath = "./buddha-young-bigdata/data/user_pay.txt";
 
-    //val inputUserPay = spark.sparkContext.textFile("hdfs://192.168.21.74:9000/warehouse/buddhalike.db/user_pay").map(_.split(",", -1)).map(line => exchangeUserPay(line));
+    if (args.length == 3) {
+      host = args(0)
+      shopInfoPath = s"hdfs://${host}:9000/${args(1)}"
+      userPayPath = s"hdfs://${host}:9000/${args(2)}"
+    }
 
+    val spark = SparkSession.builder().appName("ShopInfoAnalysis").getOrCreate();
 
-    val inputShopInfo = spark.sparkContext.textFile("./data/shop_info.txt").map(_.split(",", -1)).map(line => exchangeShopInfo(line));
+    val inputShopInfo = spark.sparkContext.textFile(shopInfoPath).map(_.split(",", -1)).map(line => exchangeShopInfo(line));
 
-    val inputUserPay = spark.sparkContext.textFile("./data/user_pay.txt").map(_.split(",", -1)).map(line => exchangeUserPay(line));
-
+    val inputUserPay = spark.sparkContext.textFile(userPayPath).map(_.split(",", -1)).map(line => exchangeUserPay(line));
 
     val shopInfoStructType = StructType(Array(StructField("shop_id", DataTypes.IntegerType, true), StructField("city_name", DataTypes.StringType, true),
       StructField("location_id", DataTypes.IntegerType, true), StructField("per_pay", DataTypes.DoubleType, true), StructField("score", DataTypes.DoubleType, true),
@@ -71,10 +76,6 @@ object ShopInfoAnalysis {
     milkTeaData.join(maxPayByCate, "cate_3_name").withColumn("popularity", col("score") / 5 * 0.7 + col("per_pay") / col("max_pay") * 0.3).sort(desc("popularity")).limit(5).select("shop_id", "city_name", "cate_3_name", "popularity").show()
 
     fastFoodData.join(maxPayByCate, "cate_3_name").withColumn("popularity", col("score") / 5 * 0.7 + col("per_pay") / col("max_pay") * 0.3).sort(desc("popularity")).limit(5).select("shop_id", "city_name","cate_3_name", "popularity").show()
-
-  }
-
-  def task03(): Unit = {
 
   }
 

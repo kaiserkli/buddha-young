@@ -14,8 +14,8 @@ import org.apache.spark.sql.functions._
 object ShopViewAnalysis {
 
   def main(args: Array[String]): Unit = {
-    //viewByTimeAnalysis(1198, 2)
-    viewByTop50Analysis()
+    viewByTimeAnalysis(1198, 2)
+    //viewByTop50Analysis()
   }
 
   /**
@@ -28,21 +28,23 @@ object ShopViewAnalysis {
   def viewByTimeAnalysis(shopId: Int, dateType: Int): util.List[ShopView] = {
     val spark = SparkSession.builder().master("local[*]").appName("ViewByTimeAnalysis").getOrCreate()
 
-    val input = spark.sparkContext.textFile("./data/user_view.txt").map(_.split(",", -1)).map(line => transformUserView(line));
+    val input = spark.sparkContext.textFile("./buddha-young-bigdata/data/user_view.txt").map(_.split(",", -1)).map(line => transformUserView(line));
 
     val structType = StructType(Array(StructField("shop_id", DataTypes.IntegerType, true), StructField("time_stamp", DataTypes.StringType, true)))
 
-    val userViews = spark.createDataFrame(input, structType)
+    val userViews = spark.createDataFrame(input, structType).filter(s"shop_id = ${shopId}")
 
     var result = new Array[Row](0)
 
     if (dateType == 1) {
-      result = userViews.filter(s"shop_id = ${shopId}").select("shop_id", "time_stamp").groupBy("time_stamp").agg(count("shop_id").alias("view_count")).sort(asc("time_stamp")).collect()
+      result = userViews.select("shop_id", "time_stamp").groupBy("time_stamp").agg(count("shop_id").alias("view_count")).sort(asc("time_stamp")).collect()
     } else if (dateType == 2) {
-      result = userViews.filter(s"shop_id = ${shopId}").withColumn("year", substring(col("time_stamp"), 0, 5)).withColumn("week", weekofyear(col("time_stamp"))).withColumn("time_stamp", concat(col("year"), col("week"))).select("shop_id", "time_stamp").groupBy("time_stamp").agg(count("shop_id").alias("view_count")).sort(asc("time_stamp")).collect()
+      result = userViews.withColumn("time_stamp", concat(substring(col("time_stamp"), 0, 5), weekofyear(col("time_stamp")))).select("shop_id", "time_stamp").groupBy("time_stamp").agg(count("shop_id").alias("view_count")).sort(asc("time_stamp")).collect()
     } else if (dateType == 3) {
-      result = userViews.filter(s"shop_id = ${shopId}").withColumn("time_stamp", substring(col("time_stamp"), 0, 7)).select("shop_id", "time_stamp").groupBy("time_stamp").agg(count("shop_id").alias("view_count")).sort(asc("time_stamp")).collect()
+      result = userViews.withColumn("time_stamp", substring(col("time_stamp"), 0, 7)).select("shop_id", "time_stamp").groupBy("time_stamp").agg(count("shop_id").alias("view_count")).sort(asc("time_stamp")).collect()
     }
+
+    result.foreach(println)
 
     val list = new util.ArrayList[ShopView]()
 

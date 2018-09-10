@@ -1,6 +1,6 @@
 package cn.aura.buddha.young.bigdata.streaming
 
-import cn.aura.buddha.young.bigdata.util.RedisUtil
+import cn.aura.buddha.young.bigdata.util.{ConfigUtil, RedisUtil}
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.spark.SparkConf
 import org.apache.spark.streaming.kafka010.KafkaUtils
@@ -20,31 +20,39 @@ object ReceivableUserPayInfo {
 
   def main(args: Array[String]): Unit = {
 
-    val checkPointDir = "hdfs://172.16.186.128:9000/tmp/checkpoint"
+    var host = "172.16.186.128"
+    var hdfs = "warehouse/buddha_young.db/shop_info"
+    var path = "./buddha-young-bigdata/data/shop_info.txt"
 
-    //val stream = StreamingContext.getOrCreate(checkPointDir, () => {createContext(checkPointDir)})
-    val stream = createContext(checkPointDir)
+    if (args.length == 1) {
+      host = args(0)
+      hdfs = args(1)
+      path = s"hdfs://${host}:9000/${hdfs}"
+    }
+
+    val checkPointDir = s"hdfs://${host}:9000/buddha_young/checkpoint"
+
+    val stream = StreamingContext.getOrCreate(checkPointDir, () => {createContext(checkPointDir, host, path)})
 
     stream.start()
     stream.awaitTermination()
   }
 
-  def createContext(checkPointDir: String): StreamingContext = {
-    val conf = new SparkConf().setAppName("ReceivableUserPayInfo").setMaster("local[2]")
-    val stream = new StreamingContext(conf, Durations.seconds(1))
-    //val shopInfos = stream.sparkContext.textFile("hdfs://192.168.21.74:9000/warehouse/buddhalike.db/shop_info").map(_.split(",")).map(line => (line(0), line(1)))
-    val shopInfos = stream.sparkContext.textFile("./data/shop_info.txt").map(_.split(",")).map(line => (line(0), line(1)))
+  def createContext(checkPointDir: String, host: String, path: String): StreamingContext = {
 
+    val conf = new SparkConf().setAppName("ReceivableUserPayInfo")
+    val stream = new StreamingContext(conf, Durations.seconds(1))
+    val shopInfos = stream.sparkContext.textFile(path).map(_.split(",")).map(line => (line(0), line(1)))
 
     shopInfos.cache()
 
     //Kafka Consumer数据读取参数
-    val topic = "user_pay"
+    val topic = ConfigUtil.KAFKA_TOPIC
     val kafkaParams = Map[String, Object](
-      "bootstrap.servers" -> "172.16.186.128:9092",
+      "bootstrap.servers" -> s"${host}:9092",
       "key.deserializer" -> classOf[StringDeserializer],
       "value.deserializer" -> classOf[StringDeserializer],
-      "group.id" -> "user_pay",
+      "group.id" -> ConfigUtil.KAFKA_GROUP_ID,
       "auto.offset.reset" -> "latest",
       "enable.auto.commit" -> (false: java.lang.Boolean)
     )
@@ -58,7 +66,7 @@ object ReceivableUserPayInfo {
 
       //计算商家支付次数，并保存到Redis
       payCount.foreach(shopPay => {
-        val jedis = RedisUtil.getJedis
+        val jedis = RedisUtil.getJedis(host)
 
         val shopId = shopPay._1
         val count = shopPay._2
@@ -77,7 +85,7 @@ object ReceivableUserPayInfo {
       val cityCount = shopInfos.join(payCount).map(line => (line._2._1, line._2._2)).reduceByKey(_+_)
 
       cityCount.foreach(result => {
-        val jedis = RedisUtil.getJedis
+        val jedis = RedisUtil.getJedis(host)
 
         pinyinFormat.setToneType(HanyuPinyinToneType.WITHOUT_TONE)
         pinyinFormat.setCaseType(HanyuPinyinCaseType.UPPERCASE)

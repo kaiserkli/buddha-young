@@ -15,7 +15,7 @@ public class RedisUtil {
         return jedis;
     }*/
 
-    public static Jedis getJedis() {
-        return new Jedis("172.16.186.128", 6379);
+    public static Jedis getJedis(String host) {
+        return new Jedis(host, 6379);
     }
 }
