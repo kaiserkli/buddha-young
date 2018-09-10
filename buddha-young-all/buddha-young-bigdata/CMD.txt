@@ -1,0 +1,61 @@
+#任务1
+#通过Hive将数据导入到HDFS
+create database buddha_young;
+
+use buddha_young;
+
+create table shop_info(shop_id int, city_name string, location_id int, per_pay double, score double, comment_cnt int, shop_level int, cate_1_name string, cate_2_name string, cate_3_name string) row format delimited fields terminated by ',' lines terminated by '\n' stored as textfile;
+
+create table user_pay(user_id int, shop_id int, time_stamp timestamp) row format delimited fields terminated by ',' lines terminated by '\n' stored as textfile;
+
+create table user_view(user_id int, shop_id int, time_stamp timestamp) row format delimited fields terminated by ',' lines terminated by '\n' stored as textfile;
+
+load data local inpath '/home/hadoop/data/dataset/user_pay.txt' OVERWRITE into table user_pay;
+load data local inpath '/home/hadoop/data/dataset/user_view.txt' OVERWRITE into table user_view;
+
+#任务2
+#通过Sqoop从MySQL向Hive导入user_info数据
+tar xvf sqoop-1.99.7-bin-hadoop200.tar.gz
+
+#修改Sqoop下conf/sqoop.properties，替换一下日志数据路径
+org.apache.sqoop.submission.engine.mapreduce.configuration.directory=/home/hadoop/software/hadoop-2.7.3/etc/hadoop
+
+org.apache.sqoop.security.authentication.type=SIMPLE
+org.apache.sqoop.security.authentication.handler=org.apache.sqoop.security.authentication.SimpleAuthenticationHandler
+org.apache.sqoop.security.authentication.anonymous=true
+
+#切换到bin目录
+./sqoop.sh server start #启动sqoop服务
+./sqoop.sh server stop #停止sqoop服务
+./sqoop.sh client #启动sqoop客户端，在客户端中执行如下操纵：
+	#数据导入方法
+	https://www.cnblogs.com/avivaye/p/6197123.html
+	https://my.oschina.net/u/2603867/blog/1842598
+
+#Hive数据替换
+insert overwrite table shop_info select shop_id, regexp_replace(city_name,'\'', ''), location_id, per_pay, score, comment_cnt, shop_level, regexp_replace(cate_1_name,'\'', ''), regexp_replace(cate_2_name,'\'', ''), regexp_replace(cate_3_name,'\'', '') from default.shop_info
+
+#任务3
+#Zeppelin访问Presto
+select city_name, sum(per_pay) as pay from buddha_young.shop_info group by city_name
+
+#Hive中HQL语句
+select up.everydays, up.pay_count, case when uv.view_count is null then 0 else uv.view_count end from ((select from_unixtime(unix_timestamp(time_stamp),'yyyy-MM-dd') as everydays, count(shop_id) as pay_count from user_pay group by from_unixtime(unix_timestamp(time_stamp),'yyyy-MM-dd') order by everydays asc) up
+ LEFT OUTER JOIN
+(select from_unixtime(unix_timestamp(time_stamp),'yyyy-MM-dd') as everydays, count(shop_id) as view_count from user_view group by from_unixtime(unix_timestamp(time_stamp),'yyyy-MM-dd') order by everydays asc) uv
+ON up.everydays = uv.everydays)
+
+#Presto语句
+select up.everydays, up.pay_count, case when uv.view_count is null then 0 else uv.view_count end as view_count from ((select format_datetime(time_stamp,'yyyy-MM-dd') as everydays, count(shop_id) as pay_count from user_pay group by format_datetime(time_stamp,'yyyy-MM-dd') order by everydays asc) up
+ left outer join
+(select format_datetime(time_stamp,'yyyy-MM-dd') as everydays, count(shop_id) as view_count from user_view group by format_datetime(time_stamp,'yyyy-MM-dd') order by everydays asc) uv
+ on up.everydays = uv.everydays)
+
+select cate_2_name, (0.7*(avg(score)/5)+0.3*(avg(per_pay)/max(per_pay))) as popularity, avg(per_pay) as avg_pay from shop_info group by cate_2_name order by popularity desc limit 10
+
+select si3.cate_2_name, (0.7 * (avg(si3.score) / 5) + 0.3 * (avg(si3.pay_total) / max(si3.pay_total))) as popularity, avg(si3.per_pay) as avg_pay from
+(select si2.shop_id, si1.pay_count * si2.per_pay as pay_total, si2.cate_2_name, si2.score, si2.per_pay from
+(select si.shop_id, count(up.shop_id) as pay_count from shop_info si left join user_pay up on si.shop_id = up.shop_id group by si.shop_id) si1
+inner join shop_info si2 on si1.shop_id = si2.shop_id) si3 group by si3.cate_2_name order by popularity desc limit 10
+
+
