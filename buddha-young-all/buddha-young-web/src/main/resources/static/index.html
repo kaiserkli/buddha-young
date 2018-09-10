@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <title>Buddha Young</title>
+    <script type="text/javascript" src="/js/jquery-1.10.2.min.js"></script>
+    <script type="text/javascript" src="http://echarts.baidu.com/build/dist/echarts-all.js"></script>
+    <script type="text/javascript" language="JavaScript">
+        $(document).ready(function() {
+            $.get("/shop/list", function (data) {
+                var shopInfoList = $("#shopInfoList");
+                var options = "";
+                var shopId;
+                for (var i = 0; i < data.length; i++) {
+                    options += "<option value='" + data[i].shopId + "'>" + data[i].shopId + "</option>";
+                    if (i == 0) {
+                        shopId = data[i].shopId;
+                    }
+                }
+
+                shopInfoList.html(options);
+
+                var dateType = $("input[name='dateType']:checked").val();
+
+                viewbytime(shopId, dateType);
+            });
+
+            $("#shopInfoList").change(function () {
+                var shopId = this.value;
+                var dateType = $("input[name='dateType']:checked").val();
+                viewbytime(shopId, dateType);
+            });
+
+            $("input:radio").click(function() {
+                var shopId = $("#shopInfoList").val();
+                var dateType = this.value;
+                viewbytime(shopId, dateType);
+            });
+
+            viewbytime = function(shopId, dateType) {
+                $.get("/viewbytime/" + shopId + "/" + dateType, function(data) {
+                    var myChart = echarts.init(document.getElementById("viewbytime"));
+                    alert(data.x);
+                    var title = "";
+
+                    if (dateType == 1) {
+                        title = "每天访问量";
+                    } else if (dateType == 2) {
+                        title = "每周访问量";
+                    } else if (dateType == 3) {
+                        title = "每月访问量";
+                    }
+
+                   var option = {
+                       title : {
+                           text: title
+                       },
+                       tooltip : {
+                           trigger: 'axis'
+                       },
+                       legend: {
+                           data:['访问量']
+                       },
+                       toolbox: {
+                           show : true,
+                           feature : {
+                               mark : {show: true},
+                               dataView : {show: true, readOnly: false},
+                               magicType : {show: true, type: ['line', 'bar']},
+                               restore : {show: true},
+                               saveAsImage : {show: true}
+                           }
+                       },
+                       calculable : true,
+                       xAxis : [
+                           {
+                               type : 'category',
+                               boundaryGap : false,
+                               data : data.x
+                           }
+                       ],
+                       yAxis : [
+                           {
+                               type : 'value',
+                               axisLabel : {
+                                   formatter: '{value} 次'
+                               }
+                           }
+                       ],
+                       series : [
+                           {
+                               name:'访问量',
+                               type:'line',
+                               data:data.y,
+                               markPoint : {
+                                   data : [
+                                       {type : 'max', name: '最大值'},
+                                       {type : 'min', name: '最小值'}
+                                   ]
+                               },
+                               markLine : {
+                                   data : [
+                                       {type : 'average', name: '平均值'}
+                                   ]
+                               }
+                           }
+                       ]
+                    };
+
+                    myChart.setOption(option);
+                });
+            }
+        });
+    </script>
+</head>
+<body>
+<select id="shopInfoList"></select>
+<input name="dateType" type="radio" value="1" checked="checked" />每天
+<input name="dateType" type="radio" value="2" />每周
+<input name="dateType" type="radio" value="3" />每月
+<div id="viewbytime" style="width: auto; height: 300px; border:1px solid #ccc;padding:10px;"></div>
+</body>
+</html>

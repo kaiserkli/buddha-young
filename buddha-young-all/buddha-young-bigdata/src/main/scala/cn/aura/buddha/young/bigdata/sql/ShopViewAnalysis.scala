@@ -3,6 +3,7 @@ package cn.aura.buddha.young.bigdata.sql
 import java.util
 
 import cn.aura.buddha.young.bigdata.entity.ShopView
+import cn.aura.buddha.young.bigdata.util.ConfigUtil
 import org.apache.spark.sql.{Row, SparkSession}
 import org.apache.spark.sql.types.{DataTypes, StructField, StructType}
 import org.apache.spark.sql.functions._
@@ -14,7 +15,7 @@ import org.apache.spark.sql.functions._
 object ShopViewAnalysis {
 
   def main(args: Array[String]): Unit = {
-    viewByTimeAnalysis(1198, 2)
+    viewByTimeAnalysis(1198, 1)
     //viewByTop50Analysis()
   }
 
@@ -28,7 +29,7 @@ object ShopViewAnalysis {
   def viewByTimeAnalysis(shopId: Int, dateType: Int): util.List[ShopView] = {
     val spark = SparkSession.builder().master("local[*]").appName("ViewByTimeAnalysis").getOrCreate()
 
-    val input = spark.sparkContext.textFile("./buddha-young-bigdata/data/user_view.txt").map(_.split(",", -1)).map(line => transformUserView(line));
+    val input = spark.sparkContext.textFile(ConfigUtil.HADOOP_HDFS_URL + "/warehouse/buddha_young.db/user_view").map(_.split(",", -1)).map(line => transformUserView(line));
 
     val structType = StructType(Array(StructField("shop_id", DataTypes.IntegerType, true), StructField("time_stamp", DataTypes.StringType, true)))
 
@@ -68,8 +69,8 @@ object ShopViewAnalysis {
   def viewByTop50Analysis(): util.List[ShopView] = {
     val spark = SparkSession.builder().master("local[*]").appName("ViewByTimeAnalysis").getOrCreate()
 
-    val inputShopInfo = spark.sparkContext.textFile("./data/shop_info.txt").map(_.split(",", -1)).map(line => transformShopInfo(line));
-    val inputUserView = spark.sparkContext.textFile("./data/user_view.txt").map(_.split(",", -1)).map(line => transformUserView(line));
+    val inputShopInfo = spark.sparkContext.textFile("./buddha-young-bigdata/data/shop_info.txt").map(_.split(",", -1)).map(line => transformShopInfo(line));
+    val inputUserView = spark.sparkContext.textFile("./buddha-young-bigdata/data/user_view.txt").map(_.split(",", -1)).map(line => transformUserView(line));
 
     val structTypeShopInfo = StructType(Array(StructField("shop_id", DataTypes.IntegerType, true), StructField("city_name", DataTypes.StringType, true), StructField("per_pay", DataTypes.DoubleType, true)))
     val structTypeUserView = StructType(Array(StructField("shop_id", DataTypes.IntegerType, true), StructField("time_stamp", DataTypes.StringType, true)))
