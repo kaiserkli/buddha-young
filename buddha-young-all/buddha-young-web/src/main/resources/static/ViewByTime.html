@@ -40,7 +40,6 @@
             viewbytime = function(shopId, dateType) {
                 $.get("/viewbytime/" + shopId + "/" + dateType, function(data) {
                     var myChart = echarts.init(document.getElementById("viewbytime"));
-                    alert(data.x);
                     var title = "";
 
                     if (dateType == 1) {
